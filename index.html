@@ -5,11 +5,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Dice Game</title>
     
-    <!-- Load Ethers.js -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-    <!-- Load WalletConnect -->
-    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
-    
+    <!-- Load Ethers.js dengan multiple fallback -->
+    <script>
+        // Function untuk load Ethers.js dengan fallback
+        function loadEthers() {
+            const ethersScript = document.createElement('script');
+            ethersScript.src = 'https://cdn.ethers.io/lib/ethers-5.2.umd.min.js';
+            ethersScript.integrity = 'sha384-8S2d5V5pG8z/hz+6F5Qy0k4q4M8Y9I5y5k5J5K5J5J5J5J5J5J5J5J5J5J5J5J5';
+            ethersScript.crossOrigin = 'anonymous';
+            
+            ethersScript.onload = function() {
+                console.log('Ethers.js loaded successfully');
+                // Load WalletConnect setelah Ethers.js berhasil
+                loadWalletConnect();
+            };
+            
+            ethersScript.onerror = function() {
+                console.log('Primary CDN failed, trying fallback...');
+                // Fallback 1
+                const fallback1 = document.createElement('script');
+                fallback1.src = 'https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js';
+                fallback1.onload = function() {
+                    console.log('Ethers.js loaded from fallback 1');
+                    loadWalletConnect();
+                };
+                fallback1.onerror = function() {
+                    console.log('Fallback 1 failed, trying fallback 2...');
+                    // Fallback 2 - dari CDN jsdelivr
+                    const fallback2 = document.createElement('script');
+                    fallback2.src = 'https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js';
+                    fallback2.onload = function() {
+                        console.log('Ethers.js loaded from fallback 2');
+                        loadWalletConnect();
+                    };
+                    fallback2.onerror = function() {
+                        alert('❌ Failed to load Ethers.js library. Please check your internet connection and refresh the page.');
+                    };
+                    document.head.appendChild(fallback2);
+                };
+                document.head.appendChild(fallback1);
+            };
+            
+            document.head.appendChild(ethersScript);
+        }
+
+        // Function untuk load WalletConnect
+        function loadWalletConnect() {
+            const wcScript = document.createElement('script');
+            wcScript.src = 'https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js';
+            wcScript.onload = function() {
+                console.log('WalletConnect loaded successfully');
+                // Set flag bahwa semua library sudah loaded
+                window.librariesLoaded = true;
+            };
+            wcScript.onerror = function() {
+                console.log('WalletConnect failed to load, continuing without it...');
+                window.librariesLoaded = true;
+            };
+            document.head.appendChild(wcScript);
+        }
+
+        // Start loading libraries
+        loadEthers();
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -43,6 +102,26 @@
         .header h1 {
             font-size: 2rem;
             margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .wallet-section {
@@ -147,7 +226,7 @@
         .history-section {
             margin-top: 20px;
             max-height: 200px;
-            overflow-y: auto;
+            overflow-y-auto;
         }
 
         .history-item {
@@ -181,19 +260,6 @@
             margin: 10px 0;
             font-size: 0.8rem;
         }
-
-        .qr-container {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 10px 0;
-            text-align: center;
-        }
-
-        .qr-container img {
-            max-width: 100%;
-            border-radius: 5px;
-        }
     </style>
 </head>
 <body>
@@ -203,72 +269,93 @@
             <p>Secure • Provably Fair • On Base Blockchain</p>
         </div>
 
-        <div class="config-info">
-            <strong>Contract:</strong> 0x30c3...21Ad5 ✅<br>
-            <strong>Network:</strong> Base Sepolia
+        <div id="loadingSection" class="loading">
+            <div class="spinner"></div>
+            <p>Loading game libraries...</p>
+            <small>This may take a few seconds</small>
         </div>
 
-        <div class="wallet-section">
-            <button id="connectMain" class="btn btn-connect">Connect Wallet</button>
-            
-            <div id="walletOptions" class="wallet-options">
-                <button id="connectInjected" class="btn">BitGet/MetaMask</button>
-                <button id="connectWalletConnect" class="btn btn-walletconnect">WalletConnect</button>
+        <div id="mainContent" style="display: none;">
+            <div class="config-info">
+                <strong>Contract:</strong> 0x30c3...21Ad5 ✅<br>
+                <strong>Network:</strong> Base Sepolia
             </div>
 
-            <div id="accountInfo" class="account-info" style="display: none;">
-                <div>Connected: <span id="accountAddress"></span></div>
-                <div>Balance: <span id="balance">0</span> ETH</div>
-                <div>Network: <span id="networkInfo">Unknown</span></div>
-            </div>
+            <div class="wallet-section">
+                <button id="connectMain" class="btn btn-connect">Connect Wallet</button>
+                
+                <div id="walletOptions" class="wallet-options">
+                    <button id="connectInjected" class="btn">BitGet/MetaMask</button>
+                    <button id="connectWalletConnect" class="btn btn-walletconnect">WalletConnect</button>
+                </div>
 
-            <div id="qrCode" class="qr-container" style="display: none;">
-                <p>Scan QR Code with your wallet:</p>
-                <img id="qrImage" src="" alt="WalletConnect QR Code">
-            </div>
-        </div>
-
-        <div id="gameSection" class="game-section">
-            <div class="info-section">
-                <strong>Game Rules:</strong><br>
-                • Choose number 1-6<br>
-                • Win = 6x your bet (minus 5% fee)<br>
-                • Min: 0.001 ETH | Max: 0.1 ETH
-            </div>
-
-            <div class="input-group">
-                <label>Choose Your Number:</label>
-                <div class="number-grid">
-                    <button class="number-btn" data-number="1">1</button>
-                    <button class="number-btn" data-number="2">2</button>
-                    <button class="number-btn" data-number="3">3</button>
-                    <button class="number-btn" data-number="4">4</button>
-                    <button class="number-btn" data-number="5">5</button>
-                    <button class="number-btn" data-number="6">6</button>
+                <div id="accountInfo" class="account-info" style="display: none;">
+                    <div>Connected: <span id="accountAddress"></span></div>
+                    <div>Balance: <span id="balance">0</span> ETH</div>
+                    <div>Network: <span id="networkInfo">Unknown</span></div>
                 </div>
             </div>
 
-            <div class="input-group">
-                <label for="betAmount">Bet Amount (ETH):</label>
-                <input type="number" id="betAmount" min="0.001" max="0.1" step="0.001" value="0.001">
+            <div id="gameSection" class="game-section">
+                <div class="info-section">
+                    <strong>Game Rules:</strong><br>
+                    • Choose number 1-6<br>
+                    • Win = 6x your bet (minus 5% fee)<br>
+                    • Min: 0.001 ETH | Max: 0.1 ETH
+                </div>
+
+                <div class="input-group">
+                    <label>Choose Your Number:</label>
+                    <div class="number-grid">
+                        <button class="number-btn" data-number="1">1</button>
+                        <button class="number-btn" data-number="2">2</button>
+                        <button class="number-btn" data-number="3">3</button>
+                        <button class="number-btn" data-number="4">4</button>
+                        <button class="number-btn" data-number="5">5</button>
+                        <button class="number-btn" data-number="6">6</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="betAmount">Bet Amount (ETH):</label>
+                    <input type="number" id="betAmount" min="0.001" max="0.1" step="0.001" value="0.001">
+                </div>
+
+                <button id="rollDice" class="btn">🎲 Roll Dice!</button>
+
+                <div class="history-section">
+                    <h3>Recent Games:</h3>
+                    <div id="gameHistory"></div>
+                </div>
             </div>
 
-            <button id="rollDice" class="btn">🎲 Roll Dice!</button>
-
-            <div class="history-section">
-                <h3>Recent Games:</h3>
-                <div id="gameHistory"></div>
+            <div class="info-section" style="margin-top: 20px; text-align: center;">
+                <small>
+                    Contract: 0x30c3b935170752e775e56AE82bdF97ae55621Ad5<br>
+                    Built on Base Sepolia
+                </small>
             </div>
-        </div>
-
-        <div class="info-section" style="margin-top: 20px; text-align: center;">
-            <small>
-                Contract: 0x30c3b935170752e775e56AE82bdF97ae55621Ad5<br>
-                Built on Base Sepolia • No Environment Variables
-            </small>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Load app.js setelah semua library siap -->
+    <script>
+        function checkLibraries() {
+            if (window.librariesLoaded && typeof ethers !== 'undefined') {
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                // Load app.js
+                const appScript = document.createElement('script');
+                appScript.src = 'app.js';
+                document.body.appendChild(appScript);
+            } else {
+                setTimeout(checkLibraries, 100);
+            }
+        }
+        
+        // Start checking for libraries
+        setTimeout(checkLibraries, 1000);
+    </script>
 </body>
 </html>
