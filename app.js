@@ -1,15 +1,22 @@
-// Base Dice Game - Main Application dengan WalletConnect
+// Base Dice Game - Simple Version (Focus on fixing ethers first)
 class DiceGame {
     constructor() {
+        console.log('DiceGame initialized');
+        
+        // Check if ethers is available
+        if (typeof ethers === 'undefined') {
+            this.showError('Ethers.js is still not loaded. Please refresh the page.');
+            return;
+        }
+
         this.provider = null;
         this.signer = null;
         this.contract = null;
         this.account = null;
         this.selectedNumber = 1;
         this.gameHistory = [];
-        this.walletConnectProvider = null;
         
-        // Contract configuration - HARDCODED, no environment variables
+        // Contract configuration
         this.CONTRACT_ADDRESS = "0x30c3b935170752e775e56AE82bdF97ae55621Ad5";
         this.CONTRACT_ABI = [
             {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
@@ -40,21 +47,14 @@ class DiceGame {
     }
 
     async init() {
+        console.log('Initializing game...');
         this.bindEvents();
         await this.checkConnectedWallet();
     }
 
     bindEvents() {
         document.getElementById('connectMain').addEventListener('click', () => {
-            this.showWalletOptions();
-        });
-
-        document.getElementById('connectInjected').addEventListener('click', () => {
-            this.connectInjectedWallet();
-        });
-
-        document.getElementById('connectWalletConnect').addEventListener('click', () => {
-            this.connectWalletConnect();
+            this.connectWallet();
         });
 
         document.querySelectorAll('.number-btn').forEach(btn => {
@@ -68,39 +68,23 @@ class DiceGame {
         });
     }
 
-    showWalletOptions() {
-        document.getElementById('connectMain').style.display = 'none';
-        document.getElementById('walletOptions').style.display = 'block';
-    }
-
     async checkConnectedWallet() {
-        // Check for injected wallet
         if (window.ethereum) {
             try {
                 const accounts = await window.ethereum.request({ method: 'eth_accounts' });
                 if (accounts.length > 0) {
-                    await this.setupInjectedWallet(accounts[0]);
-                    return;
+                    await this.setupWallet(accounts[0]);
                 }
             } catch (error) {
-                console.error('Error checking injected wallet:', error);
+                console.error('Error checking wallet:', error);
             }
-        }
-
-        // Check for WalletConnect session
-        try {
-            const savedSession = localStorage.getItem('walletconnect');
-            if (savedSession) {
-                await this.connectWalletConnect();
-            }
-        } catch (error) {
-            console.error('Error checking WalletConnect:', error);
         }
     }
 
-    async connectInjectedWallet() {
+    async connectWallet() {
         if (!window.ethereum) {
-            this.showError('No Web3 wallet found. Please install BitGet, MetaMask, or use WalletConnect.');
+            this.showError('No Web3 wallet found. Please install BitGet Wallet or MetaMask.');
+            window.open('https://web3.bitget.com/en/wallet-download', '_blank');
             return;
         }
 
@@ -108,20 +92,25 @@ class DiceGame {
             const accounts = await window.ethereum.request({ 
                 method: 'eth_requestAccounts' 
             });
-            await this.setupInjectedWallet(accounts[0]);
+            await this.setupWallet(accounts[0]);
         } catch (error) {
             this.showError('Error connecting wallet: ' + error.message);
         }
     }
 
-    async setupInjectedWallet(account) {
+    async setupWallet(account) {
         try {
+            console.log('Setting up wallet for:', account);
             this.provider = new ethers.providers.Web3Provider(window.ethereum);
             this.signer = this.provider.getSigner();
             this.account = account;
             
-            await this.setupContract();
-            this.hideWalletOptions();
+            this.contract = new ethers.Contract(
+                this.CONTRACT_ADDRESS, 
+                this.CONTRACT_ABI, 
+                this.signer
+            );
+
             this.updateUI();
             await this.updateBalance();
             await this.checkNetwork();
@@ -129,72 +118,19 @@ class DiceGame {
             // Listen for account changes
             window.ethereum.on('accountsChanged', (accounts) => {
                 if (accounts.length === 0) this.resetUI();
-                else this.setupInjectedWallet(accounts[0]);
+                else this.setupWallet(accounts[0]);
             });
 
             window.ethereum.on('chainChanged', () => {
                 window.location.reload();
             });
 
+            console.log('Wallet setup completed successfully');
+
         } catch (error) {
+            console.error('Error setting up wallet:', error);
             this.showError('Error setting up wallet: ' + error.message);
         }
-    }
-
-    async connectWalletConnect() {
-        try {
-            // Initialize WalletConnect Provider
-            this.walletConnectProvider = new WalletConnectProvider.default({
-                rpc: {
-                    84532: "https://sepolia.base.org", // Base Sepolia
-                },
-                chainId: 84532, // Base Sepolia chain ID
-            });
-
-            // Enable session (triggers QR Code modal)
-            await this.walletConnectProvider.enable();
-
-            // Create ethers provider
-            this.provider = new ethers.providers.Web3Provider(this.walletConnectProvider);
-            this.signer = this.provider.getSigner();
-            this.account = await this.signer.getAddress();
-            
-            await this.setupContract();
-            this.hideQRCode();
-            this.hideWalletOptions();
-            this.updateUI();
-            await this.updateBalance();
-
-            // Listen for disconnect
-            this.walletConnectProvider.on("disconnect", () => {
-                this.resetUI();
-            });
-
-        } catch (error) {
-            console.error('WalletConnect error:', error);
-            if (error.message !== 'User closed modal') {
-                this.showError('WalletConnect error: ' + error.message);
-            }
-        }
-    }
-
-    async setupContract() {
-        if (!this.signer) return;
-        
-        this.contract = new ethers.Contract(
-            this.CONTRACT_ADDRESS, 
-            this.CONTRACT_ABI, 
-            this.signer
-        );
-    }
-
-    hideWalletOptions() {
-        document.getElementById('walletOptions').style.display = 'none';
-        document.getElementById('connectMain').style.display = 'block';
-    }
-
-    hideQRCode() {
-        document.getElementById('qrCode').style.display = 'none';
     }
 
     async checkNetwork() {
@@ -213,15 +149,13 @@ class DiceGame {
                 networkElement.style.color = '#ff6b6b';
                 
                 // Try to switch network
-                if (window.ethereum) {
-                    try {
-                        await window.ethereum.request({
-                            method: 'wallet_switchEthereumChain',
-                            params: [{ chainId: '0x14a34' }], // Base Sepolia in hex
-                        });
-                    } catch (switchError) {
-                        console.log('Network switch error:', switchError);
-                    }
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0x14a34' }], // Base Sepolia in hex
+                    });
+                } catch (switchError) {
+                    console.log('Network switch error:', switchError);
                 }
             }
         } catch (error) {
@@ -272,12 +206,16 @@ class DiceGame {
             rollButton.disabled = true;
             rollButton.textContent = '🔄 Rolling...';
             
+            console.log('Sending transaction...');
             const tx = await this.contract.rollDice(this.selectedNumber, {
                 value: ethers.utils.parseEther(betAmount.toString())
             });
             
             rollButton.textContent = '⏳ Confirming...';
+            console.log('Transaction sent:', tx.hash);
+            
             await tx.wait();
+            console.log('Transaction confirmed');
             
             this.addToHistory({
                 chosenNumber: this.selectedNumber,
@@ -347,19 +285,11 @@ class DiceGame {
         this.contract = null;
         this.account = null;
         
-        if (this.walletConnectProvider) {
-            this.walletConnectProvider.disconnect();
-            this.walletConnectProvider = null;
-        }
-        
         document.getElementById('accountInfo').style.display = 'none';
         document.getElementById('gameSection').style.display = 'none';
         document.getElementById('connectMain').style.display = 'block';
-        document.getElementById('walletOptions').style.display = 'none';
         document.getElementById('networkInfo').textContent = 'Disconnected';
         document.getElementById('networkInfo').style.color = '';
-        
-        localStorage.removeItem('walletconnect');
     }
 
     showError(message) {
@@ -371,18 +301,6 @@ class DiceGame {
     }
 }
 
-// Initialize game when page loads
-window.addEventListener('load', () => {
-    // Check if ethers is loaded
-    if (typeof ethers === 'undefined') {
-        alert('Error: Ethers.js library failed to load. Please refresh the page.');
-        return;
-    }
-    
-    // Check if WalletConnect is loaded
-    if (typeof WalletConnectProvider === 'undefined') {
-        console.warn('WalletConnect not loaded, injected wallet only');
-    }
-    
-    new DiceGame();
-});
+// Initialize game
+console.log('Starting Dice Game...');
+new DiceGame();
