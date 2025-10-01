@@ -1,4 +1,4 @@
-// Base Dice Game - Main Application
+// Base Dice Game - Main Application dengan WalletConnect
 class DiceGame {
     constructor() {
         this.provider = null;
@@ -7,52 +7,54 @@ class DiceGame {
         this.account = null;
         this.selectedNumber = 1;
         this.gameHistory = [];
-        this.config = window.APP_CONFIG;
+        this.walletConnectProvider = null;
         
-        // Check if ethers is loaded
-        if (typeof ethers === 'undefined') {
-            this.showError('Ethers.js library not loaded. Please refresh the page.');
-            return;
-        }
-        
+        // Contract configuration - HARDCODED, no environment variables
+        this.CONTRACT_ADDRESS = "0x30c3b935170752e775e56AE82bdF97ae55621Ad5";
+        this.CONTRACT_ABI = [
+            {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+            {"anonymous":false,"inputs":[
+                {"indexed":true,"internalType":"address","name":"player","type":"address"},
+                {"indexed":false,"internalType":"uint256","name":"betAmount","type":"uint256"},
+                {"indexed":false,"internalType":"uint8","name":"chosenNumber","type":"uint8"},
+                {"indexed":false,"internalType":"uint8","name":"diceResult","type":"uint8"},
+                {"indexed":false,"internalType":"bool","name":"won","type":"bool"},
+                {"indexed":false,"internalType":"uint256","name":"payout","type":"uint256"}
+            ],"name":"GameResult","type":"event"},
+            {"inputs":[],"name":"getGameCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"index","type":"uint256"}],"name":"games","outputs":[
+                {"internalType":"address","name":"player","type":"address"},
+                {"internalType":"uint256","name":"betAmount","type":"uint256"},
+                {"internalType":"uint8","name":"chosenNumber","type":"uint8"},
+                {"internalType":"uint8","name":"diceResult","type":"uint8"},
+                {"internalType":"bool","name":"won","type":"bool"}
+            ],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"houseEdge","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"maxBet","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"minBet","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint8","name":"_chosenNumber","type":"uint8"}],"name":"rollDice","outputs":[],"stateMutability":"payable","type":"function"}
+        ];
+
         this.init();
     }
 
     async init() {
-        this.displayConfigStatus();
         this.bindEvents();
         await this.checkConnectedWallet();
-        this.updateGameSettings();
-    }
-
-    displayConfigStatus() {
-        const statusElement = document.getElementById('configStatus');
-        const contractElement = document.getElementById('contractAddressShort');
-        
-        if (!this.config.CONTRACT_ADDRESS || this.config.CONTRACT_ADDRESS.includes("PASTE_YOUR")) {
-            statusElement.innerHTML = "❌ <strong>Contract not configured</strong><br>Edit CONTRACT_ADDRESS in config.js";
-            statusElement.style.color = "#ff6b6b";
-            contractElement.textContent = "Not Configured";
-        } else {
-            statusElement.innerHTML = "✅ <strong>Contract Configured</strong>";
-            statusElement.style.color = "#51cf66";
-            contractElement.textContent = `${this.config.CONTRACT_ADDRESS.substring(0, 6)}...${this.config.CONTRACT_ADDRESS.substring(38)}`;
-        }
-    }
-
-    updateGameSettings() {
-        document.getElementById('minBetDisplay').textContent = this.config.MIN_BET;
-        document.getElementById('maxBetDisplay').textContent = this.config.MAX_BET;
-        document.getElementById('houseEdgeDisplay').textContent = this.config.HOUSE_EDGE;
-        
-        document.getElementById('betAmount').min = this.config.MIN_BET;
-        document.getElementById('betAmount').max = this.config.MAX_BET;
-        document.getElementById('betAmount').value = this.config.MIN_BET;
     }
 
     bindEvents() {
-        document.getElementById('connectWallet').addEventListener('click', () => {
-            this.connectWallet();
+        document.getElementById('connectMain').addEventListener('click', () => {
+            this.showWalletOptions();
+        });
+
+        document.getElementById('connectInjected').addEventListener('click', () => {
+            this.connectInjectedWallet();
+        });
+
+        document.getElementById('connectWalletConnect').addEventListener('click', () => {
+            this.connectWalletConnect();
         });
 
         document.querySelectorAll('.number-btn').forEach(btn => {
@@ -66,23 +68,39 @@ class DiceGame {
         });
     }
 
+    showWalletOptions() {
+        document.getElementById('connectMain').style.display = 'none';
+        document.getElementById('walletOptions').style.display = 'block';
+    }
+
     async checkConnectedWallet() {
+        // Check for injected wallet
         if (window.ethereum) {
             try {
                 const accounts = await window.ethereum.request({ method: 'eth_accounts' });
                 if (accounts.length > 0) {
-                    await this.setupWallet(accounts[0]);
+                    await this.setupInjectedWallet(accounts[0]);
+                    return;
                 }
             } catch (error) {
-                console.error('Error checking wallet:', error);
+                console.error('Error checking injected wallet:', error);
             }
+        }
+
+        // Check for WalletConnect session
+        try {
+            const savedSession = localStorage.getItem('walletconnect');
+            if (savedSession) {
+                await this.connectWalletConnect();
+            }
+        } catch (error) {
+            console.error('Error checking WalletConnect:', error);
         }
     }
 
-    async connectWallet() {
+    async connectInjectedWallet() {
         if (!window.ethereum) {
-            this.showError('Please install BitGet Wallet mobile app!');
-            window.open('https://web3.bitget.com/en/wallet-download', '_blank');
+            this.showError('No Web3 wallet found. Please install BitGet, MetaMask, or use WalletConnect.');
             return;
         }
 
@@ -90,35 +108,28 @@ class DiceGame {
             const accounts = await window.ethereum.request({ 
                 method: 'eth_requestAccounts' 
             });
-            await this.setupWallet(accounts[0]);
+            await this.setupInjectedWallet(accounts[0]);
         } catch (error) {
             this.showError('Error connecting wallet: ' + error.message);
         }
     }
 
-    async setupWallet(account) {
+    async setupInjectedWallet(account) {
         try {
             this.provider = new ethers.providers.Web3Provider(window.ethereum);
             this.signer = this.provider.getSigner();
             this.account = account;
             
-            const network = await this.provider.getNetwork();
-            await this.checkNetwork(network);
-            
-            if (this.config.CONTRACT_ADDRESS && !this.config.CONTRACT_ADDRESS.includes("PASTE_YOUR")) {
-                this.contract = new ethers.Contract(
-                    this.config.CONTRACT_ADDRESS, 
-                    this.CONTRACT_ABI, 
-                    this.signer
-                );
-            }
-            
+            await this.setupContract();
+            this.hideWalletOptions();
             this.updateUI();
             await this.updateBalance();
+            await this.checkNetwork();
 
+            // Listen for account changes
             window.ethereum.on('accountsChanged', (accounts) => {
                 if (accounts.length === 0) this.resetUI();
-                else this.setupWallet(accounts[0]);
+                else this.setupInjectedWallet(accounts[0]);
             });
 
             window.ethereum.on('chainChanged', () => {
@@ -130,25 +141,92 @@ class DiceGame {
         }
     }
 
-    async checkNetwork(network) {
-        const networkElement = document.getElementById('networkInfo');
-        const baseSepoliaChainId = '0x14a34';
-        
-        if (network.chainId === 84532 || network.chainId === parseInt(baseSepoliaChainId, 16)) {
-            networkElement.textContent = 'Base Sepolia ✅';
-            networkElement.style.color = '#51cf66';
-        } else {
-            networkElement.textContent = 'Wrong Network ❌';
-            networkElement.style.color = '#ff6b6b';
+    async connectWalletConnect() {
+        try {
+            // Initialize WalletConnect Provider
+            this.walletConnectProvider = new WalletConnectProvider.default({
+                rpc: {
+                    84532: "https://sepolia.base.org", // Base Sepolia
+                },
+                chainId: 84532, // Base Sepolia chain ID
+            });
+
+            // Enable session (triggers QR Code modal)
+            await this.walletConnectProvider.enable();
+
+            // Create ethers provider
+            this.provider = new ethers.providers.Web3Provider(this.walletConnectProvider);
+            this.signer = this.provider.getSigner();
+            this.account = await this.signer.getAddress();
             
-            try {
-                await window.ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: baseSepoliaChainId }],
-                });
-            } catch (switchError) {
-                console.log('Network switch error:', switchError);
+            await this.setupContract();
+            this.hideQRCode();
+            this.hideWalletOptions();
+            this.updateUI();
+            await this.updateBalance();
+
+            // Listen for disconnect
+            this.walletConnectProvider.on("disconnect", () => {
+                this.resetUI();
+            });
+
+        } catch (error) {
+            console.error('WalletConnect error:', error);
+            if (error.message !== 'User closed modal') {
+                this.showError('WalletConnect error: ' + error.message);
             }
+        }
+    }
+
+    async setupContract() {
+        if (!this.signer) return;
+        
+        this.contract = new ethers.Contract(
+            this.CONTRACT_ADDRESS, 
+            this.CONTRACT_ABI, 
+            this.signer
+        );
+    }
+
+    hideWalletOptions() {
+        document.getElementById('walletOptions').style.display = 'none';
+        document.getElementById('connectMain').style.display = 'block';
+    }
+
+    hideQRCode() {
+        document.getElementById('qrCode').style.display = 'none';
+    }
+
+    async checkNetwork() {
+        if (!this.provider) return;
+        
+        const networkElement = document.getElementById('networkInfo');
+        try {
+            const network = await this.provider.getNetwork();
+            const baseSepoliaChainId = 84532;
+            
+            if (network.chainId === baseSepoliaChainId) {
+                networkElement.textContent = 'Base Sepolia ✅';
+                networkElement.style.color = '#51cf66';
+            } else {
+                networkElement.textContent = 'Wrong Network ❌';
+                networkElement.style.color = '#ff6b6b';
+                
+                // Try to switch network
+                if (window.ethereum) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x14a34' }], // Base Sepolia in hex
+                        });
+                    } catch (switchError) {
+                        console.log('Network switch error:', switchError);
+                    }
+                }
+            }
+        } catch (error) {
+            networkElement.textContent = 'Network Error';
+            networkElement.style.color = '#ff6b6b';
         }
     }
 
@@ -173,19 +251,14 @@ class DiceGame {
     }
 
     async rollDice() {
-        if (!this.config.CONTRACT_ADDRESS || this.config.CONTRACT_ADDRESS.includes("PASTE_YOUR")) {
-            this.showError('❌ Contract not configured. Edit CONTRACT_ADDRESS in config.js');
-            return;
-        }
-
         if (!this.contract || !this.account) {
             this.showError('Please connect your wallet first!');
             return;
         }
 
         const betAmount = document.getElementById('betAmount').value;
-        const minBet = parseFloat(this.config.MIN_BET);
-        const maxBet = parseFloat(this.config.MAX_BET);
+        const minBet = 0.001;
+        const maxBet = 0.1;
         
         if (!betAmount || betAmount < minBet || betAmount > maxBet) {
             this.showError(`Please enter valid bet amount (${minBet} - ${maxBet} ETH)`);
@@ -264,7 +337,7 @@ class DiceGame {
         document.getElementById('accountAddress').textContent = 
             `${this.account.substring(0, 6)}...${this.account.substring(38)}`;
         document.getElementById('gameSection').style.display = 'block';
-        document.getElementById('connectWallet').style.display = 'none';
+        document.getElementById('connectMain').style.display = 'none';
         document.querySelector('.number-btn[data-number="1"]').classList.add('selected');
     }
 
@@ -273,11 +346,20 @@ class DiceGame {
         this.signer = null;
         this.contract = null;
         this.account = null;
+        
+        if (this.walletConnectProvider) {
+            this.walletConnectProvider.disconnect();
+            this.walletConnectProvider = null;
+        }
+        
         document.getElementById('accountInfo').style.display = 'none';
         document.getElementById('gameSection').style.display = 'none';
-        document.getElementById('connectWallet').style.display = 'block';
+        document.getElementById('connectMain').style.display = 'block';
+        document.getElementById('walletOptions').style.display = 'none';
         document.getElementById('networkInfo').textContent = 'Disconnected';
         document.getElementById('networkInfo').style.color = '';
+        
+        localStorage.removeItem('walletconnect');
     }
 
     showError(message) {
@@ -287,36 +369,20 @@ class DiceGame {
     showSuccess(message) {
         alert('✅ ' + message);
     }
-
-    get CONTRACT_ABI() {
-        return [
-            {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
-            {"anonymous":false,"inputs":[
-                {"indexed":true,"internalType":"address","name":"player","type":"address"},
-                {"indexed":false,"internalType":"uint256","name":"betAmount","type":"uint256"},
-                {"indexed":false,"internalType":"uint8","name":"chosenNumber","type":"uint8"},
-                {"indexed":false,"internalType":"uint8","name":"diceResult","type":"uint8"},
-                {"indexed":false,"internalType":"bool","name":"won","type":"bool"},
-                {"indexed":false,"internalType":"uint256","name":"payout","type":"uint256"}
-            ],"name":"GameResult","type":"event"},
-            {"inputs":[],"name":"getGameCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint256","name":"index","type":"uint256"}],"name":"games","outputs":[
-                {"internalType":"address","name":"player","type":"address"},
-                {"internalType":"uint256","name":"betAmount","type":"uint256"},
-                {"internalType":"uint8","name":"chosenNumber","type":"uint8"},
-                {"internalType":"uint8","name":"diceResult","type":"uint8"},
-                {"internalType":"bool","name":"won","type":"bool"}
-            ],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"houseEdge","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"maxBet","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"minBet","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-            {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-            {"inputs":[{"internalType":"uint8","name":"_chosenNumber","type":"uint8"}],"name":"rollDice","outputs":[],"stateMutability":"payable","type":"function"}
-        ];
-    }
 }
 
 // Initialize game when page loads
 window.addEventListener('load', () => {
+    // Check if ethers is loaded
+    if (typeof ethers === 'undefined') {
+        alert('Error: Ethers.js library failed to load. Please refresh the page.');
+        return;
+    }
+    
+    // Check if WalletConnect is loaded
+    if (typeof WalletConnectProvider === 'undefined') {
+        console.warn('WalletConnect not loaded, injected wallet only');
+    }
+    
     new DiceGame();
 });
