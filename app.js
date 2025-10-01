@@ -1,3 +1,4 @@
+// Base Dice Game - Main Application
 class DiceGame {
     constructor() {
         this.provider = null;
@@ -7,6 +8,12 @@ class DiceGame {
         this.selectedNumber = 1;
         this.gameHistory = [];
         this.config = window.APP_CONFIG;
+        
+        // Check if ethers is loaded
+        if (typeof ethers === 'undefined') {
+            this.showError('Ethers.js library not loaded. Please refresh the page.');
+            return;
+        }
         
         this.init();
     }
@@ -74,8 +81,8 @@ class DiceGame {
 
     async connectWallet() {
         if (!window.ethereum) {
-            alert('Please install MetaMask mobile app!');
-            window.open('https://metamask.io/download.html', '_blank');
+            this.showError('Please install BitGet Wallet mobile app!');
+            window.open('https://web3.bitget.com/en/wallet-download', '_blank');
             return;
         }
 
@@ -85,7 +92,7 @@ class DiceGame {
             });
             await this.setupWallet(accounts[0]);
         } catch (error) {
-            alert('Error connecting wallet: ' + error.message);
+            this.showError('Error connecting wallet: ' + error.message);
         }
     }
 
@@ -119,7 +126,7 @@ class DiceGame {
             });
 
         } catch (error) {
-            alert('Error setting up wallet: ' + error.message);
+            this.showError('Error setting up wallet: ' + error.message);
         }
     }
 
@@ -167,12 +174,12 @@ class DiceGame {
 
     async rollDice() {
         if (!this.config.CONTRACT_ADDRESS || this.config.CONTRACT_ADDRESS.includes("PASTE_YOUR")) {
-            alert('❌ Contract not configured. Edit CONTRACT_ADDRESS in config.js');
+            this.showError('❌ Contract not configured. Edit CONTRACT_ADDRESS in config.js');
             return;
         }
 
         if (!this.contract || !this.account) {
-            alert('Please connect your wallet first!');
+            this.showError('Please connect your wallet first!');
             return;
         }
 
@@ -181,7 +188,7 @@ class DiceGame {
         const maxBet = parseFloat(this.config.MAX_BET);
         
         if (!betAmount || betAmount < minBet || betAmount > maxBet) {
-            alert(`Please enter valid bet amount (${minBet} - ${maxBet} ETH)`);
+            this.showError(`Please enter valid bet amount (${minBet} - ${maxBet} ETH)`);
             return;
         }
 
@@ -206,7 +213,7 @@ class DiceGame {
                 timestamp: new Date().toLocaleTimeString()
             });
             
-            alert('🎉 Dice rolled successfully!');
+            this.showSuccess('🎉 Dice rolled successfully! Check your balance.');
             await this.updateBalance();
             
         } catch (error) {
@@ -218,9 +225,9 @@ class DiceGame {
             });
             
             if (error.code === 4001) {
-                alert('Transaction cancelled');
+                this.showError('Transaction cancelled');
             } else {
-                alert('Error: ' + (error.reason || error.message));
+                this.showError('Error: ' + (error.reason || error.message));
             }
         } finally {
             rollButton.disabled = false;
@@ -273,6 +280,14 @@ class DiceGame {
         document.getElementById('networkInfo').style.color = '';
     }
 
+    showError(message) {
+        alert('❌ ' + message);
+    }
+
+    showSuccess(message) {
+        alert('✅ ' + message);
+    }
+
     get CONTRACT_ABI() {
         return [
             {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
@@ -301,6 +316,7 @@ class DiceGame {
     }
 }
 
+// Initialize game when page loads
 window.addEventListener('load', () => {
     new DiceGame();
 });
