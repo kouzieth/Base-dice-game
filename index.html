@@ -4,69 +4,175 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Dice Game</title>
-    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    
+    <!-- Load Ethers.js FIRST from reliable CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+    
+    <!-- Then load config -->
     <script src="config.js"></script>
+    
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh; padding: 20px; color: white;
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
         }
+
         .container {
-            max-width: 400px; margin: 0 auto;
-            background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
-            border-radius: 20px; padding: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            max-width: 400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { font-size: 2rem; margin-bottom: 10px; }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
         .wallet-section {
-            background: rgba(255,255,255,0.15); padding: 20px;
-            border-radius: 15px; margin-bottom: 20px; text-align: center;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
         }
+
         .btn {
-            background: #4CAF50; color: white; border: none;
-            padding: 15px 25px; border-radius: 10px; font-size: 1rem;
-            cursor: pointer; width: 100%; margin: 10px 0; transition: all 0.3s;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s;
         }
-        .btn:hover { background: #45a049; transform: translateY(-2px); }
-        .btn:disabled { background: #666; cursor: not-allowed; transform: none; }
-        .btn-connect { background: #2196F3; }
-        .game-section { display: none; }
+
+        .btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-connect {
+            background: #2196F3;
+        }
+
+        .game-section {
+            display: none;
+        }
+
         .number-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 10px; margin: 20px 0;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
         }
+
         .number-btn {
-            background: rgba(255,255,255,0.2); border: 2px solid transparent;
-            color: white; padding: 20px; border-radius: 10px;
-            font-size: 1.2rem; cursor: pointer; transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid transparent;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s;
         }
+
         .number-btn.selected {
-            background: #4CAF50; border-color: white; transform: scale(1.05);
+            background: #4CAF50;
+            border-color: white;
+            transform: scale(1.05);
         }
-        .input-group { margin: 20px 0; }
-        .input-group label { display: block; margin-bottom: 8px; font-weight: bold; }
+
+        .input-group {
+            margin: 20px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
         .input-group input {
-            width: 100%; padding: 15px; border: none; border-radius: 10px;
-            background: rgba(255,255,255,0.9); font-size: 1rem;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
         }
+
         .info-section {
-            background: rgba(255,255,255,0.1); padding: 15px;
-            border-radius: 10px; margin: 15px 0; font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 0.9rem;
         }
-        .history-section { margin-top: 20px; max-height: 200px; overflow-y: auto; }
+
+        .history-section {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
         .history-item {
-            background: rgba(255,255,255,0.1); padding: 10px;
-            border-radius: 8px; margin: 5px 0; font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 5px 0;
+            font-size: 0.8rem;
         }
-        .won { color: #4CAF50; border-left: 3px solid #4CAF50; }
-        .lost { color: #f44336; border-left: 3px solid #f44336; }
-        .account-info { font-size: 0.9rem; margin: 10px 0; word-break: break-all; }
+
+        .won {
+            color: #4CAF50;
+            border-left: 3px solid #4CAF50;
+        }
+
+        .lost {
+            color: #f44336;
+            border-left: 3px solid #f44336;
+        }
+
+        .account-info {
+            font-size: 0.9rem;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+
         .config-info {
-            background: rgba(255,255,255,0.1); padding: 10px;
-            border-radius: 8px; margin: 10px 0; font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 0.8rem;
         }
     </style>
 </head>
@@ -83,7 +189,7 @@
         </div>
 
         <div class="wallet-section">
-            <button id="connectWallet" class="btn btn-connect">Connect MetaMask</button>
+            <button id="connectWallet" class="btn btn-connect">Connect BitGet Wallet</button>
             <div id="accountInfo" class="account-info" style="display: none;">
                 <div>Connected: <span id="accountAddress"></span></div>
                 <div>Balance: <span id="balance">0</span> ETH</div>
@@ -132,6 +238,7 @@
         </div>
     </div>
 
+    <!-- Load app.js LAST -->
     <script src="app.js"></script>
 </body>
-</html>
+    </html>
