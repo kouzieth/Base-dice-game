@@ -17,7 +17,7 @@ class DiceGame {
         this.gameHistory = [];
         
         // Contract configuration
-        this.CONTRACT_ADDRESS = "0x30c3b935170752e775e56AE82bdF97ae55621Ad5";
+        this.CONTRACT_ADDRESS = "0xC2f5a9296d67A45A1d17Aa29934B8a6c4DFE0657";
         this.CONTRACT_ABI = [
             {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
             {"anonymous":false,"inputs":[
