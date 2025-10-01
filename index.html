@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Base Dice Game</title>
     
-    <!-- Load Ethers.js FIRST from reliable CDN -->
+    <!-- Load Ethers.js -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-    
-    <!-- Then load config -->
-    <script src="config.js"></script>
+    <!-- Load WalletConnect -->
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
     
     <style>
         * {
@@ -63,7 +62,7 @@
             font-size: 1rem;
             cursor: pointer;
             width: 100%;
-            margin: 10px 0;
+            margin: 5px 0;
             transition: all 0.3s;
         }
 
@@ -80,6 +79,14 @@
 
         .btn-connect {
             background: #2196F3;
+        }
+
+        .btn-walletconnect {
+            background: #3b99fc;
+        }
+
+        .wallet-options {
+            display: none;
         }
 
         .game-section {
@@ -174,6 +181,19 @@
             margin: 10px 0;
             font-size: 0.8rem;
         }
+
+        .qr-container {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .qr-container img {
+            max-width: 100%;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -184,16 +204,27 @@
         </div>
 
         <div class="config-info">
-            <strong>Config Status:</strong>
-            <div id="configStatus">Loading configuration...</div>
+            <strong>Contract:</strong> 0x30c3...21Ad5 ✅<br>
+            <strong>Network:</strong> Base Sepolia
         </div>
 
         <div class="wallet-section">
-            <button id="connectWallet" class="btn btn-connect">Connect BitGet Wallet</button>
+            <button id="connectMain" class="btn btn-connect">Connect Wallet</button>
+            
+            <div id="walletOptions" class="wallet-options">
+                <button id="connectInjected" class="btn">BitGet/MetaMask</button>
+                <button id="connectWalletConnect" class="btn btn-walletconnect">WalletConnect</button>
+            </div>
+
             <div id="accountInfo" class="account-info" style="display: none;">
                 <div>Connected: <span id="accountAddress"></span></div>
                 <div>Balance: <span id="balance">0</span> ETH</div>
                 <div>Network: <span id="networkInfo">Unknown</span></div>
+            </div>
+
+            <div id="qrCode" class="qr-container" style="display: none;">
+                <p>Scan QR Code with your wallet:</p>
+                <img id="qrImage" src="" alt="WalletConnect QR Code">
             </div>
         </div>
 
@@ -201,8 +232,8 @@
             <div class="info-section">
                 <strong>Game Rules:</strong><br>
                 • Choose number 1-6<br>
-                • Win = 6x your bet (minus <span id="houseEdgeDisplay">5</span>% fee)<br>
-                • Min: <span id="minBetDisplay">0.001</span> ETH | Max: <span id="maxBetDisplay">0.1</span> ETH
+                • Win = 6x your bet (minus 5% fee)<br>
+                • Min: 0.001 ETH | Max: 0.1 ETH
             </div>
 
             <div class="input-group">
@@ -232,13 +263,12 @@
 
         <div class="info-section" style="margin-top: 20px; text-align: center;">
             <small>
-                Contract: <span id="contractAddressShort">Loading...</span><br>
-                Built on Base Sepolia • Environment Variables Protected
+                Contract: 0x30c3b935170752e775e56AE82bdF97ae55621Ad5<br>
+                Built on Base Sepolia • No Environment Variables
             </small>
         </div>
     </div>
 
-    <!-- Load app.js LAST -->
     <script src="app.js"></script>
 </body>
-    </html>
+</html>
