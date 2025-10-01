@@ -4,8 +4,13 @@ window.APP_CONFIG = {
   NETWORK: "base-sepolia",
   ALCHEMY_API_KEY: "",
   MIN_BET: "0.001",
-  MAX_BET: "0.1", 
+  MAX_BET: "0.1",
   HOUSE_EDGE: "5"
 };
 
-console.log("🔧 App Config Loaded");
+// Fallback untuk development
+if (window.APP_CONFIG.CONTRACT_ADDRESS === "PASTE_YOUR_CONTRACT_ADDRESS_HERE") {
+  console.warn("⚠️ Using default config. Set VERCEL environment variables for production.");
+}
+
+console.log("🔧 App Config Loaded:", window.APP_CONFIG);
