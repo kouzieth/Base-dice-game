@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Web3 Wallet Connect Example</title>
+  <title>Simple Wallet Connect</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
     body {
@@ -39,9 +39,10 @@
     }
     button:active { background: #3c4076; }
   </style>
-  <!-- Web3Modal CDN -->
-  <script src="https://unpkg.com/web3modal"></script>
-  <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <!-- Web3Modal v1 + WalletConnect -->
+  <script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.12/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -50,12 +51,20 @@
     <div id="walletAddress"></div>
   </div>
   <script>
-    // Provider options (default includes MetaMask & WalletConnect)
-    const providerOptions = {};
+    // WalletConnect support (agar bisa connect via browser hp)
+    const providerOptions = {
+      walletconnect: {
+        package: window.WalletConnectProvider.default,
+        options: {
+          infuraId: "27e484dcd9e3efcfd25a83a78777cdf1"
+        }
+      }
+    };
 
     const web3Modal = new window.Web3Modal.default({
+      providerOptions,
       cacheProvider: false,
-      providerOptions
+      theme: "dark"
     });
 
     const connectBtn = document.getElementById('connectWallet');
@@ -69,7 +78,7 @@
         const address = await signer.getAddress();
         walletAddress.innerText = 'Wallet: ' + address;
       } catch (e) {
-        walletAddress.innerText = 'Connection cancelled!';
+        walletAddress.innerText = 'Connection cancelled or failed.';
       }
     }
   </script>
