@@ -1,361 +1,84 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base Dice Game</title>
-    
-    <!-- Load Ethers.js dengan multiple fallback -->
-    <script>
-        // Function untuk load Ethers.js dengan fallback
-        function loadEthers() {
-            const ethersScript = document.createElement('script');
-            ethersScript.src = 'https://cdn.ethers.io/lib/ethers-5.2.umd.min.js';
-            ethersScript.integrity = 'sha384-8S2d5V5pG8z/hz+6F5Qy0k4q4M8Y9I5y5k5J5K5J5J5J5J5J5J5J5J5J5J5J5J5';
-            ethersScript.crossOrigin = 'anonymous';
-            
-            ethersScript.onload = function() {
-                console.log('Ethers.js loaded successfully');
-                // Load WalletConnect setelah Ethers.js berhasil
-                loadWalletConnect();
-            };
-            
-            ethersScript.onerror = function() {
-                console.log('Primary CDN failed, trying fallback...');
-                // Fallback 1
-                const fallback1 = document.createElement('script');
-                fallback1.src = 'https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js';
-                fallback1.onload = function() {
-                    console.log('Ethers.js loaded from fallback 1');
-                    loadWalletConnect();
-                };
-                fallback1.onerror = function() {
-                    console.log('Fallback 1 failed, trying fallback 2...');
-                    // Fallback 2 - dari CDN jsdelivr
-                    const fallback2 = document.createElement('script');
-                    fallback2.src = 'https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js';
-                    fallback2.onload = function() {
-                        console.log('Ethers.js loaded from fallback 2');
-                        loadWalletConnect();
-                    };
-                    fallback2.onerror = function() {
-                        alert('❌ Failed to load Ethers.js library. Please check your internet connection and refresh the page.');
-                    };
-                    document.head.appendChild(fallback2);
-                };
-                document.head.appendChild(fallback1);
-            };
-            
-            document.head.appendChild(ethersScript);
-        }
+  <title>Connect Wallet Simple Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+    }
 
-        // Function untuk load WalletConnect
-        function loadWalletConnect() {
-            const wcScript = document.createElement('script');
-            wcScript.src = 'https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js';
-            wcScript.onload = function() {
-                console.log('WalletConnect loaded successfully');
-                // Set flag bahwa semua library sudah loaded
-                window.librariesLoaded = true;
-            };
-            wcScript.onerror = function() {
-                console.log('WalletConnect failed to load, continuing without it...');
-                window.librariesLoaded = true;
-            };
-            document.head.appendChild(wcScript);
-        }
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(41,60,156,0.08);
+      padding: 32px 22px 24px 22px;
+      max-width: 400px;
+      width: 90vw;
+      text-align: center;
+    }
 
-        // Start loading libraries
-        loadEthers();
-    </script>
+    h2 {
+      color: #29509e;
+      margin-bottom: 16px;
+      font-size: 1.3rem;
+    }
 
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    #connectButton {
+      background: linear-gradient(90deg, #6349f5, #16b6da);
+      color: #fff;
+      border: none;
+      padding: 16px 28px;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(44,61,255,0.1);
+      transition: background 0.2s;
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: white;
-        }
+    #connectButton:active {
+      background: #16b6da;
+    }
 
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-        }
-
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid white;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .wallet-section {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 15px 25px;
-            border-radius: 10px;
-            font-size: 1rem;
-            cursor: pointer;
-            width: 100%;
-            margin: 5px 0;
-            transition: all 0.3s;
-        }
-
-        .btn:hover {
-            background: #45a049;
-            transform: translateY(-2px);
-        }
-
-        .btn:disabled {
-            background: #666;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-connect {
-            background: #2196F3;
-        }
-
-        .btn-walletconnect {
-            background: #3b99fc;
-        }
-
-        .wallet-options {
-            display: none;
-        }
-
-        .game-section {
-            display: none;
-        }
-
-        .number-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin: 20px 0;
-        }
-
-        .number-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid transparent;
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .number-btn.selected {
-            background: #4CAF50;
-            border-color: white;
-            transform: scale(1.05);
-        }
-
-        .input-group {
-            margin: 20px 0;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            font-size: 1rem;
-        }
-
-        .info-section {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            font-size: 0.9rem;
-        }
-
-        .history-section {
-            margin-top: 20px;
-            max-height: 200px;
-            overflow-y-auto;
-        }
-
-        .history-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px;
-            border-radius: 8px;
-            margin: 5px 0;
-            font-size: 0.8rem;
-        }
-
-        .won {
-            color: #4CAF50;
-            border-left: 3px solid #4CAF50;
-        }
-
-        .lost {
-            color: #f44336;
-            border-left: 3px solid #f44336;
-        }
-
-        .account-info {
-            font-size: 0.9rem;
-            margin: 10px 0;
-            word-break: break-all;
-        }
-
-        .config-info {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px;
-            border-radius: 8px;
-            margin: 10px 0;
-            font-size: 0.8rem;
-        }
-    </style>
+    #walletAddress {
+      margin-top: 22px;
+      font-size: 1.05rem;
+      color: #303846;
+      word-break: break-all;
+      min-height: 24px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🎲 Base Dice Game</h1>
-            <p>Secure • Provably Fair • On Base Blockchain</p>
-        </div>
-
-        <div id="loadingSection" class="loading">
-            <div class="spinner"></div>
-            <p>Loading game libraries...</p>
-            <small>This may take a few seconds</small>
-        </div>
-
-        <div id="mainContent" style="display: none;">
-            <div class="config-info">
-                <strong>Contract:</strong> 0x30c3...21Ad5 ✅<br>
-                <strong>Network:</strong> Base Sepolia
-            </div>
-
-            <div class="wallet-section">
-                <button id="connectMain" class="btn btn-connect">Connect Wallet</button>
-                
-                <div id="walletOptions" class="wallet-options">
-                    <button id="connectInjected" class="btn">BitGet/MetaMask</button>
-                    <button id="connectWalletConnect" class="btn btn-walletconnect">WalletConnect</button>
-                </div>
-
-                <div id="accountInfo" class="account-info" style="display: none;">
-                    <div>Connected: <span id="accountAddress"></span></div>
-                    <div>Balance: <span id="balance">0</span> ETH</div>
-                    <div>Network: <span id="networkInfo">Unknown</span></div>
-                </div>
-            </div>
-
-            <div id="gameSection" class="game-section">
-                <div class="info-section">
-                    <strong>Game Rules:</strong><br>
-                    • Choose number 1-6<br>
-                    • Win = 6x your bet (minus 5% fee)<br>
-                    • Min: 0.001 ETH | Max: 0.1 ETH
-                </div>
-
-                <div class="input-group">
-                    <label>Choose Your Number:</label>
-                    <div class="number-grid">
-                        <button class="number-btn" data-number="1">1</button>
-                        <button class="number-btn" data-number="2">2</button>
-                        <button class="number-btn" data-number="3">3</button>
-                        <button class="number-btn" data-number="4">4</button>
-                        <button class="number-btn" data-number="5">5</button>
-                        <button class="number-btn" data-number="6">6</button>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label for="betAmount">Bet Amount (ETH):</label>
-                    <input type="number" id="betAmount" min="0.001" max="0.1" step="0.001" value="0.001">
-                </div>
-
-                <button id="rollDice" class="btn">🎲 Roll Dice!</button>
-
-                <div class="history-section">
-                    <h3>Recent Games:</h3>
-                    <div id="gameHistory"></div>
-                </div>
-            </div>
-
-            <div class="info-section" style="margin-top: 20px; text-align: center;">
-                <small>
-                    Contract: 0x30c3b935170752e775e56AE82bdF97ae55621Ad5<br>
-                    Built on Base Sepolia
-                </small>
-            </div>
-        </div>
-    </div>
-
-    <!-- Load app.js setelah semua library siap -->
-    <script>
-        function checkLibraries() {
-            if (window.librariesLoaded && typeof ethers !== 'undefined') {
-                document.getElementById('loadingSection').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-                
-                // Load app.js
-                const appScript = document.createElement('script');
-                appScript.src = 'app.js';
-                document.body.appendChild(appScript);
-            } else {
-                setTimeout(checkLibraries, 100);
-            }
+  <div class="container">
+    <h2>Connect Wallet Crypto</h2>
+    <button id="connectButton">Connect Wallet</button>
+    <p id="walletAddress"></p>
+  </div>
+  <script>
+    const connectButton = document.getElementById('connectButton');
+    const walletAddress = document.getElementById('walletAddress');
+    
+    connectButton.onclick = async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          walletAddress.textContent = 'Wallet Address: ' + accounts[0];
+        } catch (error) {
+          walletAddress.textContent = 'Connection rejected.';
         }
-        
-        // Start checking for libraries
-        setTimeout(checkLibraries, 1000);
-    </script>
+      } else {
+        walletAddress.textContent = 'No Ethereum wallet found. Use Metamask or other wallet browser!';
+      }
+    };
+  </script>
 </body>
 </html>
